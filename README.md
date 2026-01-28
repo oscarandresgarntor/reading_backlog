@@ -54,7 +54,29 @@ pkill -f start_server.py
 3. Click "Load unpacked"
 4. Select the `extension/` folder from this project
 
-### 4. Use the CLI
+### 4. Setup LLM for Smart Extraction (Optional)
+
+For better title/summary extraction and auto-suggested tags, install Ollama:
+
+```bash
+# Install Ollama
+brew install ollama
+
+# Start the Ollama service (run in a separate terminal)
+ollama serve
+
+# Pull the model (one-time download, ~2GB)
+ollama pull llama3.2
+```
+
+When Ollama is running, the system will:
+- Extract accurate titles from documents
+- Generate intelligent summaries
+- Suggest relevant tags automatically
+
+If Ollama is not running, the system falls back to basic extraction.
+
+### 5. Use the CLI
 
 ```bash
 # List all articles
@@ -65,6 +87,9 @@ reading add https://example.com/article
 
 # Add with tags and priority
 reading add https://example.com/article --tags "tech,ai" --priority high
+
+# Add a local PDF file
+reading add-local ~/Downloads/paper.pdf --tags "research" --priority high
 
 # Mark as read (use first 8 chars of ID)
 reading read abc12345
@@ -81,7 +106,8 @@ reading export
 | Command | Description |
 |---------|-------------|
 | `reading list` | List all articles (with filters: `--status`, `--priority`, `--tag`) |
-| `reading add <url>` | Add a new article |
+| `reading add <url>` | Add article from URL (web page or PDF) |
+| `reading add-local <path>` | Add a local PDF file |
 | `reading read <id>` | Mark article as read |
 | `reading unread <id>` | Mark article as unread |
 | `reading show <id>` | Show full article details |
