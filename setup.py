@@ -17,6 +17,7 @@ setup(
         "trafilatura>=1.6.0",
         "lxml_html_clean>=0.4.0",
         "pymupdf>=1.23.0",
+        "ollama>=0.4.0",
         "jinja2>=3.1.0",
     ],
     entry_points={

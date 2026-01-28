@@ -1,9 +1,8 @@
 """Web scraper service for extracting article metadata."""
 
-import io
 import re
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 from urllib.parse import urlparse, unquote
 
 import httpx
@@ -12,6 +11,7 @@ import trafilatura
 from trafilatura.settings import use_config
 
 from ..models import Article, ArticleCreate
+from .llm import extract_with_llm, is_ollama_running
 
 
 # Configure trafilatura for better extraction
@@ -63,32 +63,64 @@ def extract_filename_from_url(url: str) -> str:
     return filename
 
 
-def extract_pdf_metadata(pdf_bytes: bytes, url: str) -> dict:
-    """Extract metadata and text from PDF bytes using pymupdf."""
+def extract_pdf_text(pdf_bytes: bytes, max_pages: int = 5) -> str:
+    """Extract text from PDF for LLM processing."""
+    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+    full_text = ""
+    for page_num in range(min(max_pages, doc.page_count)):
+        page = doc[page_num]
+        full_text += page.get_text()
+    doc.close()
+    return full_text
+
+
+def extract_pdf_metadata(pdf_bytes: bytes, url: str, use_llm: bool = True) -> dict:
+    """Extract metadata and text from PDF bytes using pymupdf and optionally LLM."""
     doc = fitz.open(stream=pdf_bytes, filetype="pdf")
 
     # Get PDF metadata
     metadata = doc.metadata
 
-    # Extract title (with fallbacks)
+    # Extract full text for LLM
+    full_text = ""
+    for page_num in range(min(5, doc.page_count)):  # First 5 pages
+        page = doc[page_num]
+        full_text += page.get_text()
+
+    doc.close()
+
+    # Try LLM extraction first
+    if use_llm and is_ollama_running():
+        llm_result = extract_with_llm(full_text)
+        if llm_result:
+            return {
+                "title": llm_result.get("title", ""),
+                "summary": llm_result.get("summary", ""),
+                "suggested_tags": llm_result.get("suggested_tags", []),
+                "date_published": extract_pdf_date(metadata),
+                "author": metadata.get("author"),
+                "used_llm": True,
+            }
+
+    # Fallback to basic extraction
     title = ""
     if metadata.get("title"):
         title = clean_text(metadata["title"])
 
     # If no title in metadata, try first heading or filename
     if not title:
-        # Try to get title from first page text (often the title is at the top)
+        doc = fitz.open(stream=pdf_bytes, filetype="pdf")
         if doc.page_count > 0:
             first_page = doc[0]
             blocks = first_page.get_text("blocks")
             if blocks:
-                # Get the first non-empty text block (often the title)
-                for block in blocks[:3]:  # Check first 3 blocks
-                    if block[4]:  # block[4] is the text content
+                for block in blocks[:3]:
+                    if block[4]:
                         potential_title = clean_text(block[4])
                         if len(potential_title) > 5 and len(potential_title) < 200:
                             title = potential_title
                             break
+        doc.close()
 
     # Fallback to filename
     if not title:
@@ -96,39 +128,49 @@ def extract_pdf_metadata(pdf_bytes: bytes, url: str) -> dict:
     if not title:
         title = f"PDF from {extract_domain(url)}"
 
-    # Extract text for summary (first few pages)
-    full_text = ""
-    for page_num in range(min(3, doc.page_count)):  # First 3 pages max
-        page = doc[page_num]
-        full_text += page.get_text()
-
+    # Basic summary
     summary = clean_text(full_text)[:200]
     if len(full_text) > 200:
         summary += "..."
 
-    # Get dates
-    date_published = None
+    return {
+        "title": title,
+        "summary": summary,
+        "suggested_tags": [],
+        "date_published": extract_pdf_date(metadata),
+        "author": metadata.get("author"),
+        "used_llm": False,
+    }
+
+
+def extract_pdf_date(metadata: dict) -> Optional[str]:
+    """Extract date from PDF metadata."""
     if metadata.get("creationDate"):
-        # PDF dates are in format: D:YYYYMMDDHHmmSS
         date_str = metadata["creationDate"]
         if date_str.startswith("D:"):
             date_str = date_str[2:]
         if len(date_str) >= 8:
-            date_published = f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:8]}"
+            return f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:8]}"
+    return None
 
-    doc.close()
 
-    return {
-        "title": title,
-        "summary": summary,
-        "date_published": date_published,
-        "author": metadata.get("author"),
-    }
+def merge_tags(user_tags: List[str], suggested_tags: List[str]) -> List[str]:
+    """Merge user-provided tags with LLM-suggested tags."""
+    # User tags take priority, add suggested tags that aren't duplicates
+    all_tags = list(user_tags)
+    user_tags_lower = [t.lower() for t in user_tags]
+    for tag in suggested_tags:
+        if tag.lower() not in user_tags_lower:
+            all_tags.append(tag)
+    return all_tags[:6]  # Limit to 6 tags
 
 
 async def scrape_pdf(url: str, pdf_bytes: bytes, article_data: ArticleCreate) -> Article:
     """Extract metadata from a PDF and create an Article."""
-    pdf_meta = extract_pdf_metadata(pdf_bytes, url)
+    pdf_meta = extract_pdf_metadata(pdf_bytes, url, use_llm=True)
+
+    # Merge user tags with suggested tags
+    tags = merge_tags(article_data.tags, pdf_meta.get("suggested_tags", []))
 
     return Article(
         url=url,
@@ -136,7 +178,7 @@ async def scrape_pdf(url: str, pdf_bytes: bytes, article_data: ArticleCreate) ->
         summary=pdf_meta["summary"],
         source=extract_domain(url),
         date_published=pdf_meta["date_published"],
-        tags=article_data.tags,
+        tags=tags,
         priority=article_data.priority,
     )
 
@@ -153,29 +195,52 @@ async def scrape_html(url: str, html: str, article_data: ArticleCreate) -> Artic
         config=TRAF_CONFIG,
     )
 
-    # Get metadata
+    # Get basic metadata
     metadata = trafilatura.extract_metadata(html)
 
-    # Build title (with fallbacks)
+    # Try LLM extraction first
+    suggested_tags = []
+    if extracted and is_ollama_running():
+        llm_result = extract_with_llm(extracted)
+        if llm_result:
+            title = llm_result.get("title", "")
+            summary = llm_result.get("summary", "")
+            suggested_tags = llm_result.get("suggested_tags", [])
+
+            # Get date from trafilatura metadata
+            date_published = None
+            if metadata and metadata.date:
+                date_published = metadata.date
+
+            tags = merge_tags(article_data.tags, suggested_tags)
+
+            return Article(
+                url=url,
+                title=title,
+                summary=summary,
+                source=extract_domain(url),
+                date_published=date_published,
+                tags=tags,
+                priority=article_data.priority,
+            )
+
+    # Fallback to basic extraction
     title = ""
     if metadata and metadata.title:
         title = clean_text(metadata.title)
     if not title:
-        # Try to extract from HTML title tag
         title_match = re.search(r'<title[^>]*>([^<]+)</title>', html, re.IGNORECASE)
         if title_match:
             title = clean_text(title_match.group(1))
     if not title:
         title = f"Article from {extract_domain(url)}"
 
-    # Build summary (first ~200 chars of content)
     summary = ""
     if extracted:
         summary = clean_text(extracted)[:200]
         if len(extracted) > 200:
             summary += "..."
 
-    # Get publication date if available
     date_published = None
     if metadata and metadata.date:
         date_published = metadata.date
@@ -196,6 +261,7 @@ async def scrape_article(article_data: ArticleCreate) -> Article:
     Scrape metadata from a URL and create an Article.
 
     Supports both HTML pages and PDF files.
+    Uses LLM (Ollama) for better extraction when available.
     """
     url = str(article_data.url)
 

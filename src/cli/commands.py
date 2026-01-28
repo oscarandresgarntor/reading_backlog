@@ -7,8 +7,8 @@ from rich.console import Console
 from rich.table import Table
 
 from ..models import Article, ArticleCreate, ArticleUpdate, Priority, Status
-from ..services import scrape_article_sync, storage
-from ..services.scraper import extract_pdf_metadata
+from ..services import scrape_article_sync, storage, is_ollama_running
+from ..services.scraper import extract_pdf_metadata, merge_tags
 
 app = typer.Typer(
     name="reading",
@@ -129,10 +129,15 @@ def add_local(
         console.print(f"[red]Error:[/red] Only PDF files are supported")
         raise typer.Exit(1)
 
-    with console.status("Extracting PDF metadata..."):
+    status_msg = "Analyzing PDF with LLM..." if is_ollama_running() else "Extracting PDF metadata..."
+    with console.status(status_msg):
         try:
             pdf_bytes = path.read_bytes()
-            pdf_meta = extract_pdf_metadata(pdf_bytes, str(path))
+            pdf_meta = extract_pdf_metadata(pdf_bytes, str(path), use_llm=True)
+
+            # Merge user tags with LLM-suggested tags
+            user_tags = [t.strip() for t in tags.split(",")] if tags else []
+            all_tags = merge_tags(user_tags, pdf_meta.get("suggested_tags", []))
 
             article = Article(
                 url=f"file://{path}",
@@ -140,15 +145,18 @@ def add_local(
                 summary=pdf_meta["summary"],
                 source=path.name,
                 date_published=pdf_meta["date_published"],
-                tags=tags.split(",") if tags else [],
+                tags=all_tags,
                 priority=Priority(priority),
             )
             storage.add(article)
 
-            console.print(f"\n[green]Added:[/green] {article.title}")
+            llm_note = " [cyan](via LLM)[/cyan]" if pdf_meta.get("used_llm") else ""
+            console.print(f"\n[green]Added:{llm_note}[/green] {article.title}")
             console.print(f"[dim]Source: {article.source} | ID: {article.id[:8]}[/dim]")
             if article.summary:
                 console.print(f"[dim]{article.summary}[/dim]")
+            if all_tags:
+                console.print(f"[dim]Tags: {', '.join(all_tags)}[/dim]")
 
         except Exception as e:
             console.print(f"[red]Error:[/red] {e}")
