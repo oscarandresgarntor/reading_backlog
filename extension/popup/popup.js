@@ -60,21 +60,32 @@ saveBtn.addEventListener('click', async () => {
     showStatus('loading', 'Fetching article metadata...');
 
     try {
-        const response = await fetch(`${API_BASE}/articles`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                url: url,
-                tags: tags,
-                priority: selectedPriority,
-            }),
-        });
+        let response;
+        try {
+            response = await fetch(`${API_BASE}/articles`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    url: url,
+                    tags: tags,
+                    priority: selectedPriority,
+                }),
+            });
+        } catch (networkError) {
+            throw new Error('Server not running. Start it with: python scripts/start_server.py');
+        }
 
         if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.detail || 'Failed to save article');
+            let errorMessage = 'Failed to save article';
+            try {
+                const errorData = await response.json();
+                errorMessage = errorData.detail || errorMessage;
+            } catch (e) {
+                // JSON parsing failed, use default message
+            }
+            throw new Error(errorMessage);
         }
 
         const article = await response.json();
@@ -87,7 +98,8 @@ saveBtn.addEventListener('click', async () => {
         setTimeout(() => window.close(), 1500);
 
     } catch (error) {
-        showStatus('error', error.message);
+        const message = typeof error.message === 'string' ? error.message : 'An error occurred';
+        showStatus('error', message);
         saveBtn.disabled = false;
         saveBtn.textContent = 'Save Article';
     }
