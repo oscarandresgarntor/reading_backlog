@@ -34,6 +34,11 @@ The server runs at `http://127.0.0.1:5123`:
 - Dashboard: `http://127.0.0.1:5123/dashboard`
 - API: `http://127.0.0.1:5123/api`
 
+To check if the server is running:
+```bash
+curl -s http://127.0.0.1:5123/health && echo "" || echo "Server is OFF"
+```
+
 To stop the server:
 ```bash
 # If running in foreground, press Ctrl+C
