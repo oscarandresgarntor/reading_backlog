@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environment
+venv/
+.venv/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Data (keep structure, ignore content)
+data/*.json
+data/*.md
+!data/.gitkeep
+
+# OS
+.DS_Store

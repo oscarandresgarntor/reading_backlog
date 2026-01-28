@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "reading-backlog"
+version = "0.1.0"
+description = "A reading backlog system with CLI, API, and Chrome extension"
+requires-python = ">=3.9"
+dependencies = [
+    "fastapi>=0.109.0",
+    "uvicorn[standard]>=0.27.0",
+    "pydantic>=2.5.0",
+    "typer>=0.9.0",
+    "rich>=13.7.0",
+    "httpx>=0.26.0",
+    "trafilatura>=1.6.0",
+    "lxml_html_clean>=0.4.0",
+    "jinja2>=3.1.0",
+]
+
+[project.scripts]
+reading = "src.cli.commands:main"
+
+[tool.setuptools.packages.find]
+include = ["src*"]

@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reading Backlog</title>
+    <style>
+        :root {
+            --bg: #1a1a2e;
+            --surface: #16213e;
+            --primary: #0f3460;
+            --accent: #e94560;
+            --text: #eaeaea;
+            --text-dim: #8b8b8b;
+            --success: #4ade80;
+            --warning: #fbbf24;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        h1 {
+            font-size: 1.8rem;
+            font-weight: 600;
+        }
+
+        .stats {
+            display: flex;
+            gap: 1.5rem;
+            color: var(--text-dim);
+            font-size: 0.9rem;
+        }
+
+        .stat {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .stat-value {
+            color: var(--text);
+            font-weight: 600;
+        }
+
+        .filters {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .filter-group {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .filter-btn {
+            padding: 0.5rem 1rem;
+            border: 1px solid var(--primary);
+            background: transparent;
+            color: var(--text-dim);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.85rem;
+        }
+
+        .filter-btn:hover {
+            background: var(--primary);
+            color: var(--text);
+        }
+
+        .filter-btn.active {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: var(--text);
+        }
+
+        .articles {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .article {
+            background: var(--surface);
+            border-radius: 8px;
+            padding: 1.25rem;
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 1rem;
+            transition: transform 0.2s;
+        }
+
+        .article:hover {
+            transform: translateX(4px);
+        }
+
+        .article.read {
+            opacity: 0.6;
+        }
+
+        .article-main {
+            min-width: 0;
+        }
+
+        .article-title {
+            font-size: 1.1rem;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+            color: var(--text);
+            text-decoration: none;
+            display: block;
+        }
+
+        .article-title:hover {
+            color: var(--accent);
+        }
+
+        .article-meta {
+            display: flex;
+            gap: 1rem;
+            font-size: 0.85rem;
+            color: var(--text-dim);
+            flex-wrap: wrap;
+        }
+
+        .article-source {
+            color: var(--accent);
+        }
+
+        .article-summary {
+            margin-top: 0.75rem;
+            font-size: 0.9rem;
+            color: var(--text-dim);
+            line-height: 1.5;
+        }
+
+        .article-tags {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .tag {
+            background: var(--primary);
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+        }
+
+        .priority {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 0.5rem;
+        }
+
+        .priority.high { background: #ef4444; }
+        .priority.medium { background: #fbbf24; }
+        .priority.low { background: #4ade80; }
+
+        .article-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .action-btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+
+        .action-btn.read-btn {
+            background: var(--success);
+            color: #000;
+        }
+
+        .action-btn.unread-btn {
+            background: var(--primary);
+            color: var(--text);
+        }
+
+        .action-btn.delete-btn {
+            background: transparent;
+            border: 1px solid var(--accent);
+            color: var(--accent);
+        }
+
+        .action-btn:hover {
+            opacity: 0.8;
+        }
+
+        .empty {
+            text-align: center;
+            padding: 3rem;
+            color: var(--text-dim);
+        }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .spinner {
+            width: 24px;
+            height: 24px;
+            border: 2px solid var(--primary);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Reading Backlog</h1>
+            <div class="stats">
+                <div class="stat">
+                    <span>Unread:</span>
+                    <span class="stat-value" id="unread-count">-</span>
+                </div>
+                <div class="stat">
+                    <span>Read:</span>
+                    <span class="stat-value" id="read-count">-</span>
+                </div>
+            </div>
+        </header>
+
+        <div class="filters">
+            <div class="filter-group">
+                <button class="filter-btn active" data-filter="status" data-value="">All</button>
+                <button class="filter-btn" data-filter="status" data-value="unread">Unread</button>
+                <button class="filter-btn" data-filter="status" data-value="read">Read</button>
+            </div>
+            <div class="filter-group">
+                <button class="filter-btn" data-filter="priority" data-value="high">High Priority</button>
+                <button class="filter-btn" data-filter="priority" data-value="medium">Medium</button>
+                <button class="filter-btn" data-filter="priority" data-value="low">Low</button>
+            </div>
+        </div>
+
+        <div class="articles" id="articles">
+            <div class="loading"><div class="spinner"></div></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = '/api';
+        let currentFilters = { status: '', priority: '' };
+
+        async function fetchArticles() {
+            const params = new URLSearchParams();
+            if (currentFilters.status) params.set('status', currentFilters.status);
+            if (currentFilters.priority) params.set('priority', currentFilters.priority);
+
+            const response = await fetch(`${API_BASE}/articles?${params}`);
+            return response.json();
+        }
+
+        function formatDate(dateStr) {
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        }
+
+        function renderArticle(article) {
+            const isRead = article.status === 'read';
+            return `
+                <div class="article ${isRead ? 'read' : ''}" data-id="${article.id}">
+                    <div class="article-main">
+                        <a href="${article.url}" target="_blank" class="article-title">
+                            <span class="priority ${article.priority}"></span>
+                            ${article.title}
+                        </a>
+                        <div class="article-meta">
+                            <span class="article-source">${article.source}</span>
+                            <span>Added ${formatDate(article.date_added)}</span>
+                            ${article.date_published ? `<span>Published ${article.date_published}</span>` : ''}
+                        </div>
+                        ${article.summary ? `<div class="article-summary">${article.summary}</div>` : ''}
+                        ${article.tags.length ? `
+                            <div class="article-tags">
+                                ${article.tags.map(tag => `<span class="tag">${tag}</span>`).join('')}
+                            </div>
+                        ` : ''}
+                    </div>
+                    <div class="article-actions">
+                        ${isRead
+                            ? `<button class="action-btn unread-btn" onclick="markUnread('${article.id}')">Mark Unread</button>`
+                            : `<button class="action-btn read-btn" onclick="markRead('${article.id}')">Mark Read</button>`
+                        }
+                        <button class="action-btn delete-btn" onclick="deleteArticle('${article.id}')">Delete</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        async function render() {
+            const container = document.getElementById('articles');
+            container.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+
+            const articles = await fetchArticles();
+
+            // Update stats
+            const allArticles = await fetch(`${API_BASE}/articles`).then(r => r.json());
+            document.getElementById('unread-count').textContent =
+                allArticles.filter(a => a.status === 'unread').length;
+            document.getElementById('read-count').textContent =
+                allArticles.filter(a => a.status === 'read').length;
+
+            if (articles.length === 0) {
+                container.innerHTML = '<div class="empty">No articles found</div>';
+                return;
+            }
+
+            container.innerHTML = articles.map(renderArticle).join('');
+        }
+
+        async function markRead(id) {
+            await fetch(`${API_BASE}/articles/${id}/read`, { method: 'POST' });
+            render();
+        }
+
+        async function markUnread(id) {
+            await fetch(`${API_BASE}/articles/${id}/unread`, { method: 'POST' });
+            render();
+        }
+
+        async function deleteArticle(id) {
+            if (!confirm('Delete this article?')) return;
+            await fetch(`${API_BASE}/articles/${id}`, { method: 'DELETE' });
+            render();
+        }
+
+        // Filter handling
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const filter = btn.dataset.filter;
+                const value = btn.dataset.value;
+
+                // For priority filters, allow toggling off
+                if (filter === 'priority' && btn.classList.contains('active')) {
+                    btn.classList.remove('active');
+                    currentFilters[filter] = '';
+                    render();
+                    return;
+                }
+
+                // Update active state within same filter group
+                btn.parentElement.querySelectorAll('.filter-btn').forEach(b => {
+                    b.classList.remove('active');
+                });
+                btn.classList.add('active');
+
+                // Update filter and refresh
+                currentFilters[filter] = value;
+                render();
+            });
+        });
+
+        // Initial load
+        render();
+    </script>
+</body>
+</html>
