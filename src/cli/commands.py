@@ -6,8 +6,9 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from ..models import ArticleCreate, ArticleUpdate, Priority, Status
+from ..models import Article, ArticleCreate, ArticleUpdate, Priority, Status
 from ..services import scrape_article_sync, storage
+from ..services.scraper import extract_pdf_metadata
 
 app = typer.Typer(
     name="reading",
@@ -97,6 +98,51 @@ def add(
                 priority=Priority(priority),
             )
             article = scrape_article_sync(article_data)
+            storage.add(article)
+
+            console.print(f"\n[green]Added:[/green] {article.title}")
+            console.print(f"[dim]Source: {article.source} | ID: {article.id[:8]}[/dim]")
+            if article.summary:
+                console.print(f"[dim]{article.summary}[/dim]")
+
+        except Exception as e:
+            console.print(f"[red]Error:[/red] {e}")
+            raise typer.Exit(1)
+
+
+@app.command("add-local")
+def add_local(
+    file_path: str = typer.Argument(..., help="Path to local PDF file"),
+    tags: Optional[str] = typer.Option(None, "--tags", "-t", help="Comma-separated tags"),
+    priority: str = typer.Option("medium", "--priority", "-p", help="Priority: low, medium, high"),
+):
+    """Add a local PDF file to the backlog."""
+    from pathlib import Path
+
+    path = Path(file_path).expanduser().resolve()
+
+    if not path.exists():
+        console.print(f"[red]Error:[/red] File not found: {path}")
+        raise typer.Exit(1)
+
+    if not path.suffix.lower() == ".pdf":
+        console.print(f"[red]Error:[/red] Only PDF files are supported")
+        raise typer.Exit(1)
+
+    with console.status("Extracting PDF metadata..."):
+        try:
+            pdf_bytes = path.read_bytes()
+            pdf_meta = extract_pdf_metadata(pdf_bytes, str(path))
+
+            article = Article(
+                url=f"file://{path}",
+                title=pdf_meta["title"],
+                summary=pdf_meta["summary"],
+                source=path.name,
+                date_published=pdf_meta["date_published"],
+                tags=tags.split(",") if tags else [],
+                priority=Priority(priority),
+            )
             storage.add(article)
 
             console.print(f"\n[green]Added:[/green] {article.title}")

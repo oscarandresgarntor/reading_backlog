@@ -50,6 +50,12 @@ saveBtn.addEventListener('click', async () => {
         return;
     }
 
+    // Check for local files
+    if (url.startsWith('file://')) {
+        showStatus('error', 'Local files not supported. Use CLI: reading add-local <path>');
+        return;
+    }
+
     // Get tags
     const tagsValue = tagsInput.value.trim();
     const tags = tagsValue ? tagsValue.split(',').map(t => t.trim()).filter(Boolean) : [];
