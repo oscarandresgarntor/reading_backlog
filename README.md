@@ -34,6 +34,14 @@ The server runs at `http://127.0.0.1:5123`:
 - Dashboard: `http://127.0.0.1:5123/dashboard`
 - API: `http://127.0.0.1:5123/api`
 
+To stop the server:
+```bash
+# If running in foreground, press Ctrl+C
+
+# If running in background
+pkill -f start_server.py
+```
+
 ### 3. Install Chrome Extension
 
 1. Open Chrome and go to `chrome://extensions/`
