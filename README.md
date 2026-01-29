@@ -69,6 +69,18 @@ ollama serve
 ollama pull llama3.2
 ```
 
+To manage the Ollama service:
+```bash
+# Stop Ollama
+brew services stop ollama
+
+# Start Ollama
+brew services start ollama
+
+# Check status
+brew services list | grep ollama
+```
+
 When Ollama is running, the system will:
 - Extract accurate titles from documents
 - Generate intelligent summaries
