@@ -47,6 +47,22 @@ To stop the server:
 pkill -f start_server.py
 ```
 
+#### Auto-Start on Login (macOS)
+
+To start the server automatically when you log in:
+
+```bash
+# Load the launch agent (one-time setup)
+launchctl load ~/Library/LaunchAgents/com.reading-backlog.server.plist
+
+# Stop the service
+launchctl unload ~/Library/LaunchAgents/com.reading-backlog.server.plist
+
+# View logs
+tail -f ~/Library/Logs/reading-backlog.log
+tail -f ~/Library/Logs/reading-backlog.error.log
+```
+
 ### 3. Install Chrome Extension
 
 1. Open Chrome and go to `chrome://extensions/`
