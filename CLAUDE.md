@@ -28,6 +28,11 @@ curl http://127.0.0.1:5123/health
 
 # Stop server
 pkill -f start_server.py
+
+# Auto-start service (macOS)
+launchctl load ~/Library/LaunchAgents/com.reading-backlog.server.plist    # Start
+launchctl unload ~/Library/LaunchAgents/com.reading-backlog.server.plist  # Stop
+tail -f ~/Library/Logs/reading-backlog.log                                 # Logs
 ```
 
 ## Architecture
