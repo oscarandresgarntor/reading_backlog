@@ -52,7 +52,10 @@ pkill -f start_server.py
 To start the server automatically when you log in:
 
 ```bash
-# Load the launch agent (one-time setup)
+# Copy the launch agent (edit paths in the file first if needed)
+cp scripts/com.reading-backlog.server.plist ~/Library/LaunchAgents/
+
+# Load the launch agent
 launchctl load ~/Library/LaunchAgents/com.reading-backlog.server.plist
 
 # Stop the service

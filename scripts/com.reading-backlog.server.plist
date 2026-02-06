@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.reading-backlog.server</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/oscarandresgarnicatoro/Documents/GitHub/reading_backlog/venv/bin/python</string>
+        <string>/Users/oscarandresgarnicatoro/Documents/GitHub/reading_backlog/scripts/start_server.py</string>
+    </array>
+    <key>WorkingDirectory</key>
+    <string>/Users/oscarandresgarnicatoro/Documents/GitHub/reading_backlog</string>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/Users/oscarandresgarnicatoro/Library/Logs/reading-backlog.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/oscarandresgarnicatoro/Library/Logs/reading-backlog.error.log</string>
+</dict>
+</plist>
